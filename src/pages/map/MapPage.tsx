@@ -7,14 +7,21 @@ import { type RegionId } from "@/constants/regions";
 import { InteractiveKoreaMap } from "@/features/map/components/InteractiveKoreaMap";
 import { TravelProofConsentModal } from "@/features/map/components/TravelProofConsentModal";
 import { useMapData } from "@/features/map/useMapData";
+import {
+  loadTravelProofConsent,
+  saveTravelProofConsent,
+} from "@/lib/auth/tokenStorage";
 import { Entypo } from "@expo/vector-icons";
 import { type Href, Link, router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, View } from "react-native";
 
 const MapPage = () => {
   const [selectedRegionId, setSelectedRegionId] = useState<RegionId>();
   const [isConsentVisible, setIsConsentVisible] = useState(false);
+  // undefined = 저장소에서 읽는 중. 읽기 전에 눌리면 동의를 안 받은 것처럼
+  // 다루지 않도록 로딩 상태를 구분한다.
+  const [hasConsented, setHasConsented] = useState<boolean>();
   const favoriteCount = favoriteRegionSpots.length;
   const { data } = useMapData();
   const progress = data?.summary.progress;
@@ -40,6 +47,44 @@ const MapPage = () => {
       accent: colors.primary,
       icon: "location-dot" as const,
     })) ?? recommendations;
+  useEffect(() => {
+    let cancelled = false;
+
+    loadTravelProofConsent().then((consented) => {
+      if (!cancelled) {
+        setHasConsented(consented);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const goToCertification = () => {
+    router.push("/photo");
+  };
+
+  const startCertification = () => {
+    if (hasConsented === undefined) {
+      return;
+    }
+
+    if (hasConsented) {
+      goToCertification();
+      return;
+    }
+
+    setIsConsentVisible(true);
+  };
+
+  const confirmConsent = async () => {
+    setHasConsented(true);
+    setIsConsentVisible(false);
+    await saveTravelProofConsent();
+    goToCertification();
+  };
+
   const openRegionDetail = (regionId: RegionId | undefined) => {
     if (!regionId) {
       return;
@@ -137,7 +182,7 @@ const MapPage = () => {
               accessibilityRole="button"
               accessibilityLabel="여행 인증하기"
               className="absolute bottom-2.5 right-3 h-20 w-20 items-center justify-center rounded-full border-2 border-primary/95 bg-primary/85"
-              onPress={() => setIsConsentVisible(true)}
+              onPress={startCertification}
             >
               <Entypo name="camera" size={30} color={colors.foreground} />
               <AppText
@@ -219,7 +264,7 @@ const MapPage = () => {
       <TravelProofConsentModal
         visible={isConsentVisible}
         onClose={() => setIsConsentVisible(false)}
-        onConfirm={() => setIsConsentVisible(false)}
+        onConfirm={confirmConsent}
       />
     </>
   );
