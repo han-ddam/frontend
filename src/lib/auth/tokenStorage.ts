@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 const ACCESS_TOKEN_KEY = "handdam.accessToken";
 const REFRESH_TOKEN_KEY = "handdam.refreshToken";
 const LOGIN_SKIPPED_KEY = "handdam.loginSkipped";
+const TRAVEL_PROOF_CONSENT_KEY = "handdam.travelProofConsent";
 
 // SecureStore is native-only. On web (and in tests) it throws, so fall back to
 // an in-memory map: the session lasts for the run instead of crashing the app.
@@ -70,4 +71,14 @@ export const loadLoginSkipped = async () => {
 
 export const clearLoginSkipped = () => {
   return removeItem(LOGIN_SKIPPED_KEY);
+};
+
+// 여행 인증(위치·사진) 동의는 최초 1회만 받는다. 기기에만 남기므로 앱을 지우거나
+// 기기를 바꾸면 다시 묻는다.
+export const saveTravelProofConsent = () => {
+  return setItem(TRAVEL_PROOF_CONSENT_KEY, "true");
+};
+
+export const loadTravelProofConsent = async () => {
+  return (await getItem(TRAVEL_PROOF_CONSENT_KEY)) === "true";
 };
